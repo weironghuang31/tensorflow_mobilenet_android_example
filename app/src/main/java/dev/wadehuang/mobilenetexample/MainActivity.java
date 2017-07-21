@@ -14,18 +14,15 @@ import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.util.Log;
+import android.util.Size;
+import android.view.Display;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.ImageView;
-import android.widget.ListAdapter;
 import android.widget.ListView;
-import android.widget.SimpleAdapter;
-import android.widget.TextView;
 import android.widget.Toast;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import dev.wadehuang.mobilenetexample.images.ImageClassifier;
@@ -35,12 +32,12 @@ import dev.wadehuang.mobilenetexample.views.CameraPreviewFragment;
 
 
 public class MainActivity extends Activity
-        implements ImageReader.OnImageAvailableListener {
+        implements CameraPreviewFragment.CameraPreviewListener {
 
     private static final String TAG = "MainActivity";
     private static final String PERMISSION_CAMERA = Manifest.permission.CAMERA;
     private static final int PERMISSIONS_REQUEST = 1;
-    private static final boolean DEBUG_MODE = true;
+    private static final boolean DEBUG_MODE = false;
 
     private ListView resultListView;
     private ImageView previewImageView;
@@ -51,6 +48,7 @@ public class MainActivity extends Activity
     private ImageClassifier imageClassifier;
     private Bitmap bitmap;
     private Bitmap croppedBitmap;
+    private int sensorOrientation;
     private Matrix frameToCropTransform;
     private Matrix cropToFrameTransform;
     private List<Recognition> resultList;
@@ -106,6 +104,27 @@ public class MainActivity extends Activity
         }
     }
 
+
+    @Override
+    public void onPreviewReadied(Size size, int cameraRotation) {
+        bitmap = Bitmap.createBitmap(size.getWidth(), size.getHeight(), Bitmap.Config.ARGB_8888);
+        croppedBitmap = Bitmap.createBitmap(ImageClassifier.INPUT_SIZE, ImageClassifier.INPUT_SIZE, Bitmap.Config.ARGB_8888);
+
+        final Display display = getWindowManager().getDefaultDisplay();
+        final int screenOrientation = display.getRotation();
+
+        sensorOrientation = cameraRotation + screenOrientation;
+
+        frameToCropTransform =
+                ImageHelper.getTransformationMatrix(
+                        size.getHeight(), size.getWidth(),
+                        ImageClassifier.INPUT_SIZE, ImageClassifier.INPUT_SIZE,
+                        sensorOrientation, true);
+
+        cropToFrameTransform = new Matrix();
+        frameToCropTransform.invert(cropToFrameTransform);
+    }
+
     @Override
     public void onImageAvailable(ImageReader reader) {
         if (computing)
@@ -124,17 +143,10 @@ public class MainActivity extends Activity
 
             computing = true;
 
-            if (null == bitmap) {
-                bitmap = Bitmap.createBitmap(image.getWidth(), image.getHeight(), Bitmap.Config.ARGB_8888);
-                croppedBitmap = Bitmap.createBitmap(ImageClassifier.INPUT_SIZE, ImageClassifier.INPUT_SIZE, Bitmap.Config.ARGB_8888);
-            }
-
             ImageHelper.imageToBitmap(image, bitmap);
 
-            croppedBitmap = Bitmap.createScaledBitmap(bitmap, ImageClassifier.INPUT_SIZE, ImageClassifier.INPUT_SIZE, false);
-
-            //            final Canvas canvas = new Canvas(croppedBitmap);
-//            canvas.drawBitmap(bitmap, frameToCropTransform, null);
+            final Canvas canvas = new Canvas(croppedBitmap);
+            canvas.drawBitmap(bitmap, frameToCropTransform, null);
 
             image.close();
 

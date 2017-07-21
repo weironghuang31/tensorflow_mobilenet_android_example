@@ -38,7 +38,6 @@ public class ImageClassifier {
 
         this.tfInterface = new TensorFlowInferenceInterface(context.getAssets(), MODEL_FILE);
 
-
         InitLabels();
     }
 

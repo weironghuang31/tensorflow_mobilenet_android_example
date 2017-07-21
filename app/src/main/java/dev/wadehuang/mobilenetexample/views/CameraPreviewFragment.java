@@ -16,7 +16,6 @@
 
 package dev.wadehuang.mobilenetexample.views;
 
-import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -24,11 +23,9 @@ import android.app.DialogFragment;
 import android.app.Fragment;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
-import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
@@ -37,12 +34,10 @@ import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
-import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
-import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
 import android.os.Handler;
@@ -58,10 +53,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -73,6 +64,12 @@ import java.util.concurrent.TimeUnit;
 import dev.wadehuang.mobilenetexample.R;
 
 public class CameraPreviewFragment extends Fragment {
+
+    public interface CameraPreviewListener
+            extends ImageReader.OnImageAvailableListener
+    {
+        void onPreviewReadied(Size size, int cameraRotation);
+    }
 
     /**
      * Conversion from screen rotation to JPEG orientation.
@@ -232,7 +229,7 @@ public class CameraPreviewFragment extends Fragment {
      * This a callback object for the {@link ImageReader}. "onImageAvailable" will be called when a
      * still image is ready to be saved.
      */
-    private ImageReader.OnImageAvailableListener mOnImageAvailableListener;
+    private CameraPreviewListener mCameraPreviewListener;
 
     /**
      * {@link CaptureRequest.Builder} for the camera preview
@@ -345,9 +342,9 @@ public class CameraPreviewFragment extends Fragment {
         }
     }
 
-    public static CameraPreviewFragment newInstance(ImageReader.OnImageAvailableListener listener) {
+    public static CameraPreviewFragment newInstance(CameraPreviewListener listener) {
         CameraPreviewFragment fragment = new CameraPreviewFragment();
-        fragment.mOnImageAvailableListener = listener;
+        fragment.mCameraPreviewListener = listener;
         return fragment;
     }
 
@@ -485,6 +482,8 @@ public class CameraPreviewFragment extends Fragment {
                 mFlashSupported = available == null ? false : available;
 
                 mCameraId = cameraId;
+
+                mCameraPreviewListener.onPreviewReadied(mPreviewSize, mSensorOrientation);
                 return;
             }
         } catch (CameraAccessException e) {
@@ -589,7 +588,7 @@ public class CameraPreviewFragment extends Fragment {
                     ImageFormat.YUV_420_888, /*maxImages*/2);
 
             mImageReader.setOnImageAvailableListener(
-                    mOnImageAvailableListener, mBackgroundHandler);
+                    mCameraPreviewListener, mBackgroundHandler);
 
             mPreviewRequestBuilder.addTarget(mImageReader.getSurface());
 
